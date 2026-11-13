@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1120" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Дууны долгион" />
+  <title>Дууны Чичирхийлэл ба Долгионы Симулятор | Sound Vibration Simulator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0b1120;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+
+    /* Custom range slider styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 8px;
+      border-radius: 999px;
+      background: #1e293b;
+      border: 1px solid #334155;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -6px;
+      background-color: #38bdf8;
+      height: 20px;
+      width: 20px;
+      border-radius: 50%;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.7);
+      border: 2px solid #ffffff;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      background-color: #7dd3fc;
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+    }
+
+    .pulse-ring {
+      animation: pulseGlow 2s infinite;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45); }
+      50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+    }
+
+    /* ==========================================
+       УТАС / ТАБЛЕТ / УХААЛАГ САМБАР ДЭМЖЛЭГ
+       ========================================== */
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      touch-action: manipulation;          /* давхар товшилтын томруулалтыг унтраана */
+      overscroll-behavior-y: contain;      /* самбар дээр санамсаргүй "pull-to-refresh" хийхгүй */
+      -webkit-tap-highlight-color: transparent;
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    header { padding-top: env(safe-area-inset-top); }
+
+    /* Симуляцийн талбайн өндөр дэлгэцэд тааруулж өөрчлөгдөнө */
+    .sim-wrap { height: clamp(260px, 50vh, 420px); }
+    #simCanvas {
+      touch-action: pan-y;                 /* хэвтээ чирэлт симулятор руу, босоо гүйлгэлт хуудас руу */
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* Гулсуулагч: илүү том хүрэх талбай */
+    input[type="range"] { height: 28px; }
+    input[type="range"]:focus-visible { outline: 2px solid #38bdf8; outline-offset: 4px; border-radius: 8px; }
+    input[type="range"]::-moz-range-track {
+      height: 8px; border-radius: 999px; background: #1e293b; border: 1px solid #334155;
+    }
+    input[type="range"]::-moz-range-thumb {
+      background-color: #38bdf8; height: 20px; width: 20px; border-radius: 50%;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.7); border: 2px solid #ffffff;
+    }
+
+    #canvas-hint { transition: opacity 0.6s ease; max-width: 60%; }
+    #canvas-hint.fade-out { opacity: 0; }
+
+    /* Жижиг дэлгэц (утас): товчнууд зөвхөн дүрстэй */
+    @media (max-width: 639px) {
+      .btn-label { display: none; }
+      #app-subtitle { display: none; }
+    }
+
+    /* Мэдрэгч дэлгэц (утас, таблет, самбар): хуруунд тохирох хэмжээ */
+    @media (pointer: coarse) {
+      header button, main button, select { min-height: 44px; }
+      [role="group"] button { min-height: 36px; }
+      select { font-size: 16px; }          /* iOS дээр автоматаар томруулахаас сэргийлнэ */
+      input[type="checkbox"] { width: 22px; height: 22px; }
+      input[type="range"] { height: 44px; }
+      input[type="range"]::-webkit-slider-runnable-track { height: 10px; }
+      input[type="range"]::-webkit-slider-thumb { height: 30px; width: 30px; margin-top: -11px; }
+      input[type="range"]::-moz-range-track { height: 10px; }
+      input[type="range"]::-moz-range-thumb { height: 30px; width: 30px; }
+    }
+
+    /* Ухаалаг самбарын горим: бүх зүйл томорч, дэлгэцийг бүтэн ашиглана */
+    html.board-mode { font-size: 125%; }
+    html.board-mode .max-w-7xl { max-width: 100%; }
+    html.board-mode .sim-wrap { height: clamp(360px, 60vh, 1100px); }
+    html.board-mode input[type="range"] { height: 52px; }
+    html.board-mode input[type="range"]::-webkit-slider-runnable-track { height: 14px; }
+    html.board-mode input[type="range"]::-webkit-slider-thumb { height: 40px; width: 40px; margin-top: -14px; }
+    html.board-mode input[type="range"]::-moz-range-track { height: 14px; }
+    html.board-mode input[type="range"]::-moz-range-thumb { height: 40px; width: 40px; }
+    html.board-mode input[type="checkbox"] { width: 26px; height: 26px; }
+    /* Төгөлдөр хуурын гар */
+    .piano { position: relative; height: 6.5rem; display: flex; gap: 3px; user-select: none; -webkit-user-select: none; }
+    .piano .key-w {
+      flex: 1 1 0; position: relative; border-radius: 0 0 10px 10px;
+      background: linear-gradient(#f8fafc, #e2e8f0); border: 1px solid #94a3b8;
+      color: #0f172a; display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+      padding-bottom: 0.4rem; font-weight: 700; font-size: 0.75rem; line-height: 1.1;
+      transition: transform 0.08s ease, background 0.15s ease; touch-action: manipulation;
+    }
+    .piano .key-b {
+      position: absolute; top: 0; width: 9%; height: 60%; z-index: 2; border-radius: 0 0 7px 7px;
+      background: linear-gradient(#334155, #020617); border: 1px solid #0f172a; color: #cbd5e1;
+      display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+      padding-bottom: 0.3rem; font-size: 0.6rem; font-weight: 600; line-height: 1.1;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.5); transition: transform 0.08s ease; touch-action: manipulation;
+    }
+    .piano .key-sub { font-family: ui-monospace, monospace; font-weight: 500; font-size: 0.85em; opacity: 0.7; }
+    .piano button:active:not(:disabled) { transform: translateY(2px); }
+    .piano .key-w.active { background: linear-gradient(#7dd3fc, #38bdf8); border-color: #0ea5e9; box-shadow: 0 0 14px rgba(56,189,248,0.7); }
+    .piano .key-b.active { background: linear-gradient(#0ea5e9, #0369a1); color: #fff; box-shadow: 0 0 12px rgba(56,189,248,0.8); }
+    .piano button:disabled { opacity: 0.25; cursor: not-allowed; }
+    .piano button { min-height: 0 !important; }
+    .oct-btn { color: #cbd5e1; }
+    .oct-btn.active { background: #0ea5e9; color: #020617; }
+    @media (max-width: 639px) { .piano .key-b .key-sub { display: none; } }
+    html.board-mode .piano { height: 8rem; }
+
+    html.board-mode #board-btn { background: #0ea5e9; color: #020617; border-color: #38bdf8; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-sky-500 selection:text-white">
+
+  <!-- Top Navigation / Header -->
+  <header class="border-b border-slate-800 bg-slate-900/90 sticky top-0 z-30 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+          <!-- Sound Wave SVG Icon -->
+          <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+          </svg>
+        </div>
+        <div>
+          <h1 id="app-title" class="text-base sm:text-lg font-bold tracking-tight text-white">
+            Дууны Чичирхийлэл ба Долгионы Симулятор
+          </h1>
+          <p id="app-subtitle" class="text-xs text-slate-400">
+            Sound Vibration &amp; Wave Propagation Physics Lab
+          </p>
+        </div>
+      </div>
+
+      <!-- Language & Audio Quick Controls -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        <!-- Smartboard mode & Fullscreen -->
+        <button id="board-btn" onclick="toggleBoardMode()" title="Ухаалаг самбарын горим (B)" class="flex items-center gap-1.5 px-3 py-2 rounded-xl font-semibold text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-sky-300 border border-sky-500/40 transition shadow-md">
+          <span>🖥️</span>
+          <span id="board-btn-label" class="btn-label">Самбар / Board</span>
+        </button>
+        <button id="fs-btn" onclick="toggleFullscreen()" title="Бүтэн дэлгэц (F)" class="flex items-center gap-1.5 px-3 py-2 rounded-xl font-semibold text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition shadow-md">
+          <span id="fs-icon">⛶</span>
+          <span id="fs-btn-label" class="btn-label">Бүтэн дэлгэц</span>
+        </button>
+
+        <!-- Language Switcher -->
+        <div class="inline-flex rounded-xl bg-slate-800 p-1 border border-slate-700" role="group" aria-label="Language switcher">
+          <button id="lang-bi" onclick="setLanguage('bi')" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-sky-500 text-slate-950 transition">
+            MN / EN
+          </button>
+          <button id="lang-mn" onclick="setLanguage('mn')" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition">
+            Монгол
+          </button>
+          <button id="lang-en" onclick="setLanguage('en')" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition">
+            English
+          </button>
+        </div>
+
+        <!-- Master Sound Toggle Button -->
+        <button id="audio-toggle-btn" onclick="toggleAudio()" class="flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 transition shadow-md">
+          <span id="audio-icon">🔇</span>
+          <span id="audio-btn-label" class="btn-label">Дуу асаах / Sound Off</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5 flex-grow">
+
+    <!-- Simulation Canvas Card -->
+    <section class="glass-panel rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+      <!-- Top Status & Legend Bar -->
+      <div class="px-4 py-3 bg-slate-900/90 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-4 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-sky-400 inline-block shadow shadow-sky-400/50"></span>
+            <span class="text-slate-300" data-i18n="legendParticle">Орчны жижиг хэсэг (Medium Particle)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-amber-400 inline-block ring-2 ring-amber-400/40"></span>
+            <span class="text-slate-300" data-i18n="legendTracked">Хянаж буй бөөм (Tracked Particle)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-sm bg-rose-500/80 inline-block"></span>
+            <span class="text-slate-300" data-i18n="legendCompression">Шахалт (Compression)</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-sm bg-indigo-500/40 border border-indigo-400/50 inline-block"></span>
+            <span class="text-slate-300" data-i18n="legendRarefaction">Сийрэгжилт (Rarefaction)</span>
+          </div>
+        </div>
+
+        <!-- Live Telemetry Readout -->
+        <div class="flex items-center gap-3 text-xs font-mono bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
+          <span class="text-sky-400 font-semibold"><span id="readout-freq">220</span> Hz</span>
+          <span class="text-slate-600">|</span>
+          <span class="text-emerald-400" id="readout-speed">343 m/s (Агаар / Air)</span>
+        </div>
+      </div>
+
+      <!-- Interactive Canvas Wrapper -->
+      <div id="sim-wrap" class="sim-wrap relative w-full bg-slate-950 select-none">
+        <canvas id="simCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+        <!-- Interactive Hint Badge -->
+        <div id="canvas-hint" class="absolute bottom-3 left-3 pointer-events-none bg-slate-900/85 backdrop-blur-md border border-slate-700/80 text-slate-200 text-xs px-3 py-1.5 rounded-xl shadow-lg">
+          💡 <span data-i18n="canvasHint">Эх үүсвэр дээр дарж эсвэл чирж чичирхийлүүлнэ үү! (Click/drag source to vibrate)</span>
+        </div>
+
+        <!-- Play/Pause & Slow Motion Floating Controls -->
+        <div class="absolute bottom-3 right-3 flex items-center gap-2">
+          <button id="slowmo-btn" onclick="toggleSlowMo()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700 transition shadow-lg">
+            🐢 <span class="btn-label" data-i18n="slowMoBtn">Удаашруулах (Slow-Mo)</span>
+          </button>
+          <button id="playpause-btn" onclick="togglePlay()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-slate-950 transition shadow-lg">
+            ⏸ <span class="btn-label" data-i18n="pauseBtn">Түр зогсоох (Pause)</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Controls Grid -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      
+      <!-- Left Column: Source & Medium Selectors (5 cols) -->
+      <div class="lg:col-span-5 glass-panel rounded-2xl p-5 space-y-5">
+        <!-- Sound Source Selection -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-sky-400 mb-2.5" data-i18n="sourceLabel">
+            1. Дууны эх үүсвэр (Sound Source)
+          </label>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="setSource('speaker')" id="src-speaker" class="source-btn p-2.5 rounded-xl border border-sky-500 bg-sky-500/15 text-white text-center transition flex flex-col items-center gap-1">
+              <span class="text-xl">🔊</span>
+              <span class="text-xs font-semibold leading-tight" data-i18n="srcSpeaker">Чанга яригч<br><span class="text-[0.625rem] text-slate-300 font-normal">Speaker</span></span>
+            </button>
+            <button onclick="setSource('guitar')" id="src-guitar" class="source-btn p-2.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-300 text-center transition flex flex-col items-center gap-1">
+              <span class="text-xl">🎸</span>
+              <span class="text-xs font-semibold leading-tight" data-i18n="srcGuitar">Гитарын чавхдас<br><span class="text-[0.625rem] text-slate-400 font-normal">Guitar String</span></span>
+            </button>
+            <button onclick="setSource('fork')" id="src-fork" class="source-btn p-2.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-300 text-center transition flex flex-col items-center gap-1">
+              <span class="text-xl">🍴</span>
+              <span class="text-xs font-semibold leading-tight" data-i18n="srcFork">Камертон<br><span class="text-[0.625rem] text-slate-400 font-normal">Tuning Fork</span></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Medium Selection -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2.5" data-i18n="mediumLabel">
+            2. Дамжуулах орчин (Medium)
+          </label>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="setMedium('air')" id="med-air" class="med-btn p-2.5 rounded-xl border border-emerald-500 bg-emerald-500/15 text-white text-center transition flex flex-col items-center gap-1">
+              <span class="text-xl">💨</span>
+              <span class="text-xs font-semibold leading-tight" data-i18n="medAir">Агаар (Хий)<br><span class="text-[0.625rem] text-slate-300 font-normal">Air • 343 m/s</span></span>
+            </button>
+            <button onclick="setMedium('water')" id="med-water" class="med-btn p-2.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-300 text-center transition flex flex-col items-center gap-1">
+              <span class="text-xl">💧</span>
+              <span class="text-xs font-semibold leading-tight" data-i18n="medWater">Ус (Шингэн)<br><span class="text-[0.625rem] text-slate-400 font-normal">Water • 1480 m/s</span></span>
+            </button>
+            <button onclick="setMedium('solid')" id="med-solid" class="med-btn p-2.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-300 text-center transition flex flex-col items-center gap-1">
+              <span class="text-xl">🧱</span>
+              <span class="text-xs font-semibold leading-tight" data-i18n="medSolid">Хатуу биет<br><span class="text-[0.625rem] text-slate-400 font-normal">Solid • 5100 m/s</span></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Visual Overlay Options -->
+        <div class="pt-1 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800">
+          <label class="inline-flex items-center gap-2 cursor-pointer text-xs text-slate-300 select-none">
+            <input type="checkbox" id="toggle-wave-overlay" checked onchange="state.showWaveGraph = this.checked" class="w-4 h-4 rounded accent-sky-500">
+            <span data-i18n="showWaveGraph">Долгионы график харуулах (Show Pressure Wave)</span>
+          </label>
+          <button onclick="pluckSource()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition shadow">
+            ✨ <span data-i18n="pluckBtn">Чавхдас татах / Цохих (Pluck)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Column: Sliders & Sound Synthesizer Controls (7 cols) -->
+      <div class="lg:col-span-7 glass-panel rounded-2xl p-5 flex flex-col justify-between space-y-5">
+        <!-- Frequency Slider -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label for="freq-slider" class="text-xs sm:text-sm font-bold text-slate-200" data-i18n="freqLabel">
+              Давтамж / Дууны өндөр (Frequency / Pitch)
+            </label>
+            <span class="text-xs font-mono px-2.5 py-0.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/30">
+              <span id="freq-val">220</span> Hz (<span id="note-val">A3</span>)
+            </span>
+          </div>
+          <input id="freq-slider" type="range" min="110" max="660" step="1" value="220" class="w-full" oninput="updateFrequency(this.value)">
+          <div class="flex justify-between text-[0.6875rem] text-slate-400 mt-1">
+            <span data-i18n="lowPitch">Нам дуу / Удаан чичирхийлэл (110 Hz)</span>
+            <span data-i18n="highPitch">Өндөр дуу / Хурдан чичирхийлэл (660 Hz)</span>
+          </div>
+        </div>
+
+        <!-- Amplitude Slider -->
+        <div>
+          <div class="flex justify-between items-center mb-1.5">
+            <label for="amp-slider" class="text-xs sm:text-sm font-bold text-slate-200" data-i18n="ampLabel">
+              Далайц / Дууны чанга (Amplitude / Volume)
+            </label>
+            <span class="text-xs font-mono px-2.5 py-0.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">
+              <span id="amp-val">65</span>%
+            </span>
+          </div>
+          <input id="amp-slider" type="range" min="0" max="100" step="1" value="65" class="w-full" oninput="updateAmplitude(this.value)">
+          <div class="flex justify-between text-[0.6875rem] text-slate-400 mt-1">
+            <span data-i18n="lowAmp">Намуухан / Бага шилжилт (0%)</span>
+            <span data-i18n="highAmp">Чанга / Хүчтэй түлхэлт (100%)</span>
+          </div>
+        </div>
+
+        <!-- Musical Note Presets & Waveform -->
+        <div class="pt-2 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          <!-- Төгөлдөр хуурын гар: 12 нот × 3 октав -->
+          <div class="w-full space-y-2">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <span class="text-xs text-slate-400" data-i18n="notesLabel">Нотууд (Notes):</span>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-400" data-i18n="octaveLabel">Октав:</span>
+                <div class="inline-flex rounded-lg bg-slate-800 p-0.5 border border-slate-700" role="group" aria-label="Octave">
+                  <button id="oct-3" onclick="setOctave(3)" class="oct-btn px-3 py-1 text-xs font-mono font-semibold rounded-md">3</button>
+                  <button id="oct-4" onclick="setOctave(4)" class="oct-btn px-3 py-1 text-xs font-mono font-semibold rounded-md">4</button>
+                  <button id="oct-5" onclick="setOctave(5)" class="oct-btn px-3 py-1 text-xs font-mono font-semibold rounded-md">5</button>
+                </div>
+              </div>
+            </div>
+            <div id="piano" class="piano" aria-label="Piano keyboard"></div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <label for="wave-type" class="text-xs text-slate-400" data-i18n="timbreLabel">Өнгө аяс:</label>
+            <select id="wave-type" onchange="updateWaveform(this.value)" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-sky-500">
+              <option value="sine">Цэвэр долгион (Sine)</option>
+              <option value="triangle">Зөөлөн (Triangle)</option>
+              <option value="sawtooth">Гитарын утсан (Sawtooth)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Educational Physics Explanation Cards (Bilingual MN / EN) -->
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <!-- Card 1: Core Concept -->
+      <article class="glass-panel rounded-2xl p-5 border-l-4 border-l-sky-500 space-y-3">
+        <div class="flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-sm">🌊</span>
+          <h2 class="text-base font-bold text-white" data-i18n="card1Title">
+            Дуу чимээ ба Орчин (Sound &amp; Medium)
+          </h2>
+        </div>
+        <p class="text-sm text-slate-200 leading-relaxed" data-lang-block="mn">
+          <strong>Дуу чимээг чичирхийлэл үүсгэдэг.</strong> Аливаа биет чичирхийлэхдээ өөрийгөө хүрээлж буй орчин—ихэвчлэн <em>агаар</em>, <em>ус</em> эсвэл <em>хатуу биет</em> дэх жижиг хэсгүүдийг хөдөлгөөнд оруулдаг.
+        </p>
+        <p class="text-sm text-slate-400 leading-relaxed" data-lang-block="en">
+          <strong>Sound is created through vibrations.</strong> When an object vibrates, it disturbs the particles in the medium surrounding it—usually <em>air</em>, but also <em>water</em> or <em>solids</em>.
+        </p>
+        <div class="pt-2 border-t border-slate-800/80 text-xs text-sky-300/90 flex items-center gap-2">
+          <span>💡</span>
+          <span data-i18n="card1Tip">Хатуу биетэд жижиг хэсгүүд хоорондоо маш ойр тул дуу хамгийн хурдан дамждаг!</span>
+        </div>
+      </article>
+
+      <!-- Card 2: Step 1 - The Vibration -->
+      <article class="glass-panel rounded-2xl p-5 border-l-4 border-l-amber-500 space-y-3">
+        <div class="flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-sm">1</span>
+          <h2 class="text-base font-bold text-white" data-i18n="card2Title">
+            1. Чичирхийлэл (The Vibration)
+          </h2>
+        </div>
+        <p class="text-sm text-slate-200 leading-relaxed" data-lang-block="mn">
+          Дуу чимээ нь эх үүсвэр (гитарын чавхдас эсвэл хүний дууны хөвч гэх мэт) <strong>маш хурдтайгаар нааш цааш хөдөлж</strong> эхлэхэд үүсдэг. Энэхүү хөдөлгөөн нь ойр орчмын агаарын жижиг хэсгүүдийг <strong>түлхэж, татах</strong> замаар нөлөөлдөг.
+        </p>
+        <p class="text-sm text-slate-400 leading-relaxed" data-lang-block="en">
+          Sound begins when a source (like a guitar string or your vocal cords) <strong>moves back and forth rapidly</strong>. This motion <strong>pushes and pulls</strong> on nearby air particles.
+        </p>
+        <div class="pt-2 border-t border-slate-800/80 text-xs text-amber-300/90 flex items-center gap-2">
+          <span>🟠</span>
+          <span data-i18n="card2Tip">Шар бөөмсийг ажиглаарай: бөөмс урагш урсахгүй, зөвхөн байрандаа нааш цааш чичирч энерги дамжуулдаг.</span>
+        </div>
+      </article>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/80 py-4 px-4 text-center text-xs text-slate-500">
+    <span data-i18n="footerText">Физикийн интерактив туршилт • Дууны долгион (Тууш долгион / Longitudinal Wave)</span>
+    <div class="hidden md:block mt-1.5 text-slate-600" data-i18n="shortcutsText">⌨ Space – зогсоох • 1–8 – нот • ←/→ – давтамж • ↑/↓ – далайц • P – цохих • S – удаашруулах • F – бүтэн дэлгэц • B – самбар</div>
+  </footer>
+
+  <!-- Simulation & Web Audio Engine -->
+  <script>
+    // ==========================================
+    // 1. TRANSLATIONS & BILINGUAL UI DICTIONARY
+    // ==========================================
+    const i18n = {
+      bi: {
+        appTitle: "Дууны Чичирхийлэл ба Долгионы Симулятор",
+        appSubtitle: "Sound Vibration & Wave Propagation Physics Lab",
+        legendParticle: "Орчны жижиг хэсэг (Particle)",
+        legendTracked: "Хянаж буй бөөм (Tracked)",
+        legendCompression: "Шахалт (Compression)",
+        legendRarefaction: "Сийрэгжилт (Rarefaction)",
+        canvasHint: "Эх үүсвэр дээр дарж эсвэл чирж чичирхийлүүлнэ үү! (Tap/drag source to vibrate)",
+        slowMoBtn: "Удаашруулах (Slow-Mo)",
+        slowMoActive: "Хэвийн хурд (Normal Speed)",
+        pauseBtn: "Түр зогсоох (Pause)",
+        playBtn: "Үргэлжлүүлэх (Play)",
+        sourceLabel: "1. Дууны эх үүсвэр (Sound Source)",
+        mediumLabel: "2. Дамжуулах орчин (Medium)",
+        showWaveGraph: "Долгионы график харуулах (Show Pressure Wave)",
+        pluckBtn: "Чавхдас татах / Цохих (Pluck)",
+        freqLabel: "Давтамж / Дууны өндөр (Frequency / Pitch)",
+        lowPitch: "Нам дуу / Удаан (110 Hz)",
+        highPitch: "Өндөр дуу / Хурдан (660 Hz)",
+        ampLabel: "Далайц / Дууны чанга (Amplitude / Volume)",
+        lowAmp: "Намуухан / Бага шилжилт (0%)",
+        highAmp: "Чанга / Хүчтэй түлхэлт (100%)",
+        notesLabel: "Нотууд (Notes):",
+        octaveLabel: "Октав (Octave):",
+        timbreLabel: "Өнгө аяс:",
+        card1Title: "Дуу чимээ ба Орчин (Sound & Medium)",
+        card1Tip: "Хатуу биетэд жижиг хэсгүүд хоорондоо маш ойр тул дуу хамгийн хурдан дамждаг!",
+        card2Title: "1. Чичирхийлэл (The Vibration)",
+        card2Tip: "Шар бөөмсийг ажиглаарай: бөөмс урагш урсахгүй, зөвхөн байрандаа нааш цааш чичирч энерги дамжуулдаг.",
+        footerText: "Физикийн интерактив туршилт • Дууны долгион (Тууш долгион / Longitudinal Wave)",
+        audioOn: "Дуу асаалттай / Sound On",
+        audioOff: "Дуу асаах / Sound Off",
+        boardBtn: "Самбар / Board",
+        fsEnter: "Бүтэн дэлгэц / Fullscreen",
+        fsExit: "Гарах / Exit",
+        shortcutsText: "⌨ Space – зогсоох/pause • 1–8 – нот • ←/→ – давтамж • ↑/↓ – далайц • P – цохих • S – удаашруулах • F – бүтэн дэлгэц • B – самбар"
+      },
+      mn: {
+        appTitle: "Дууны Чичирхийлэл ба Долгионы Симулятор",
+        appSubtitle: "Физикийн интерактив лаборатори",
+        legendParticle: "Орчны жижиг хэсэг",
+        legendTracked: "Хянаж буй бөөм",
+        legendCompression: "Шахалт (Нягтрал)",
+        legendRarefaction: "Сийрэгжилт",
+        canvasHint: "Эх үүсвэр дээр дарж эсвэл чирж чичирхийлүүлнэ үү!",
+        slowMoBtn: "Удаашруулах",
+        slowMoActive: "Хэвийн хурд",
+        pauseBtn: "Түр зогсоох",
+        playBtn: "Үргэлжлүүлэх",
+        sourceLabel: "1. Дууны эх үүсвэр",
+        mediumLabel: "2. Дамжуулах орчин",
+        showWaveGraph: "Даралтын долгионы график харуулах",
+        pluckBtn: "Чавхдас татах / Цохих",
+        freqLabel: "Давтамж (Дууны өндөр)",
+        lowPitch: "Нам дуу / Удаан чичирхийлэл (110 Hz)",
+        highPitch: "Өндөр дуу / Хурдан чичирхийлэл (660 Hz)",
+        ampLabel: "Далайц (Дууны чанга)",
+        lowAmp: "Намуухан / Бага шилжилт (0%)",
+        highAmp: "Чанга / Хүчтэй түлхэлт (100%)",
+        notesLabel: "Нотууд:",
+        octaveLabel: "Октав:",
+        timbreLabel: "Дууны өнгө:",
+        card1Title: "Дуу чимээ ба Дамжуулах орчин",
+        card1Tip: "Хатуу биетэд жижиг хэсгүүд хоорондоо маш ойр тул дуу хамгийн хурдан дамждаг!",
+        card2Title: "1. Чичирхийлэл",
+        card2Tip: "Шар бөөмсийг ажиглаарай: бөөмс урагш урсахгүй, зөвхөн байрандаа нааш цааш чичирч энерги дамжуулдаг.",
+        footerText: "Физикийн интерактив туршилт • Дууны долгион (Тууш долгион)",
+        audioOn: "Дуу асаалттай",
+        audioOff: "Дуу асаах",
+        boardBtn: "Самбарын горим",
+        fsEnter: "Бүтэн дэлгэц",
+        fsExit: "Гарах",
+        shortcutsText: "⌨ Space – зогсоох • 1–8 – нот • ←/→ – давтамж • ↑/↓ – далайц • P – цохих • S – удаашруулах • F – бүтэн дэлгэц • B – самбар"
+      },
+      en: {
+        appTitle: "Sound Vibration & Wave Simulator",
+        appSubtitle: "Interactive Physics Laboratory",
+        legendParticle: "Medium Particle",
+        legendTracked: "Tracked Particle",
+        legendCompression: "Compression",
+        legendRarefaction: "Rarefaction",
+        canvasHint: "Tap or drag the sound source to make it vibrate!",
+        slowMoBtn: "Slow Motion",
+        slowMoActive: "Normal Speed",
+        pauseBtn: "Pause",
+        playBtn: "Play",
+        sourceLabel: "1. Sound Source",
+        mediumLabel: "2. Surrounding Medium",
+        showWaveGraph: "Show Longitudinal Wave Graph",
+        pluckBtn: "Pluck / Strike Source",
+        freqLabel: "Frequency (Pitch)",
+        lowPitch: "Low Pitch / Slow Vibration (110 Hz)",
+        highPitch: "High Pitch / Fast Vibration (660 Hz)",
+        ampLabel: "Amplitude (Volume)",
+        lowAmp: "Quiet / Small Push (0%)",
+        highAmp: "Loud / Strong Push (100%)",
+        notesLabel: "Notes:",
+        octaveLabel: "Octave:",
+        timbreLabel: "Waveform:",
+        card1Title: "Sound & Surrounding Medium",
+        card1Tip: "Particles in solids are tightly packed, allowing sound vibrations to travel the fastest!",
+        card2Title: "1. The Vibration",
+        card2Tip: "Watch the orange particles: they oscillate back and forth in place while passing energy forward.",
+        footerText: "Interactive Physics Simulation • Sound Waves (Longitudinal Waves)",
+        audioOn: "Sound On",
+        audioOff: "Sound Off",
+        boardBtn: "Board mode",
+        fsEnter: "Fullscreen",
+        fsExit: "Exit",
+        shortcutsText: "⌨ Space – pause • 1–8 – notes • ←/→ – frequency • ↑/↓ – amplitude • P – pluck • S – slow-mo • F – fullscreen • B – board mode"
+      }
+    };
+
+    // ==========================================
+    // 2. APPLICATION STATE & MEDIUM CONFIG
+    // ==========================================
+    const mediumConfigs = {
+      air: {
+        nameMn: "Агаар",
+        nameEn: "Air",
+        speedReal: 343,
+        waveSpeedPx: 210,     // Visual wave speed in px/sec
+        cols: 34,
+        rows: 13,
+        jitter: 1.8,          // Thermal random motion for gas
+        particleRadius: 3.2,
+        color: "#38bdf8",     // Sky blue
+        bgTint: "rgba(14, 165, 233, 0.03)"
+      },
+      water: {
+        nameMn: "Ус",
+        nameEn: "Water",
+        speedReal: 1480,
+        waveSpeedPx: 360,
+        cols: 44,
+        rows: 16,
+        jitter: 0.7,          // Slight fluid movement
+        particleRadius: 3.4,
+        color: "#2dd4bf",     // Teal
+        bgTint: "rgba(20, 184, 166, 0.06)"
+      },
+      solid: {
+        nameMn: "Хатуу биет",
+        nameEn: "Solid",
+        speedReal: 5100,
+        waveSpeedPx: 540,
+        cols: 52,
+        rows: 18,
+        jitter: 0.0,          // Rigid crystal lattice
+        particleRadius: 3.6,
+        color: "#a78bfa",     // Violet
+        bgTint: "rgba(139, 92, 246, 0.05)"
+      }
+    };
+
+    const state = {
+      lang: "bi",
+      isPlaying: true,
+      slowMo: false,
+      audioEnabled: false,
+      source: "speaker",      // 'speaker' | 'guitar' | 'fork'
+      medium: "air",          // 'air' | 'water' | 'solid'
+      frequency: 220,         // Hz (110 - 660)
+      amplitude: 0.65,        // 0.0 - 1.0
+      waveform: "sine",
+      showWaveGraph: true,
+      phase: 0,               // Continuous phase angle for smooth vibration
+      pluckBoost: 0,          // Temporary extra amplitude when user clicks/plucks
+      isDraggingSource: false,
+      dragOffset: 0
+    };
+
+    // ==========================================
+    // 3. WEB AUDIO API SYNTHESIZER
+    // ==========================================
+    let audioCtx = null;
+    let oscillator = null;
+    let gainNode = null;
+    let filterNode = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        // iPhone: дуугүй (silent) горимтой үед ч Web Audio сонсогдоно (Safari 17+)
+        try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch (e) {}
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        audioCtx = new AudioContext();
+
+        oscillator = audioCtx.createOscillator();
+        filterNode = audioCtx.createBiquadFilter();
+        gainNode = audioCtx.createGain();
+
+        oscillator.type = state.waveform;
+        oscillator.frequency.setValueAtTime(state.frequency, audioCtx.currentTime);
+
+        // Lowpass filter softens harsh waveforms and simulates medium absorption
+        filterNode.type = "lowpass";
+        filterNode.frequency.setValueAtTime(1800, audioCtx.currentTime);
+
+        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+
+        oscillator.connect(filterNode);
+        filterNode.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start();
+      }
+      if (audioCtx.state === "suspended") {
+        const p = audioCtx.resume();
+        if (p && p.catch) p.catch(() => {});
+      }
+    }
+
+    // Утас/таблет дээр AudioContext-ийг зөвхөн хуруу өргөх (touchend/pointerup) үед "сэрээж" болдог
+    function unlockAudio() {
+      if (audioCtx && audioCtx.state === "suspended") {
+        const p = audioCtx.resume();
+        if (p && p.catch) p.catch(() => {});
+      }
+    }
+    ["pointerup", "touchend", "keydown", "click"].forEach(ev =>
+      window.addEventListener(ev, unlockAudio, { passive: true })
+    );
+
+    function syncAudioParameters() {
+      if (!audioCtx || !oscillator || !gainNode) return;
+      const now = audioCtx.currentTime;
+
+      // Pitch shifts slightly lower if Slow-Mo is active so user hears the slowed vibration
+      const effectiveFreq = state.slowMo ? state.frequency * 0.5 : state.frequency;
+      oscillator.frequency.setTargetAtTime(effectiveFreq, now, 0.03);
+      oscillator.type = state.waveform;
+
+      // Medium filter effect (water muffles high frequencies slightly, solid rings brighter)
+      const cutoff = state.medium === "water" ? 950 : state.medium === "solid" ? 2800 : 1800;
+      filterNode.frequency.setTargetAtTime(cutoff, now, 0.05);
+
+      // Calculate target volume
+      const effectiveAmp = Math.min(1, state.amplitude + state.pluckBoost * 0.4);
+      // Утсан дээр өөр апп руу шилжихэд (таб далдлагдахад) дуу автоматаар унтарна
+      const targetGain = (state.audioEnabled && state.isPlaying && !document.hidden) ? effectiveAmp * 0.22 : 0;
+      gainNode.gain.setTargetAtTime(targetGain, now, 0.04);
+    }
+
+    function toggleAudio() {
+      initAudio();
+      state.audioEnabled = !state.audioEnabled;
+      updateAudioButtonUI();
+      syncAudioParameters();
+    }
+
+    function updateAudioButtonUI() {
+      const btn = document.getElementById("audio-toggle-btn");
+      const icon = document.getElementById("audio-icon");
+      const label = document.getElementById("audio-btn-label");
+      const dict = i18n[state.lang];
+
+      if (state.audioEnabled) {
+        btn.className = "flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/50 transition shadow-md pulse-ring";
+        icon.textContent = "🔊";
+        label.textContent = dict.audioOn;
+      } else {
+        btn.className = "flex items-center gap-2 px-3.5 py-2 rounded-xl font-semibold text-xs sm:text-sm bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 transition shadow-md";
+        icon.textContent = "🔇";
+        label.textContent = dict.audioOff;
+      }
+    }
+
+    // Trigger a short pluck envelope sound even if continuous tone is off, or boost if on
+    function triggerPluckSound() {
+      initAudio();
+      if (!audioCtx) return;
+
+      // Create a transient pluck tone so clicking the string/fork always gives immediate acoustic feedback
+      const now = audioCtx.currentTime;
+      const pluckOsc = audioCtx.createOscillator();
+      const pluckGain = audioCtx.createGain();
+
+      pluckOsc.type = state.source === "guitar" ? "sawtooth" : "triangle";
+      pluckOsc.frequency.setValueAtTime(state.frequency, now);
+
+      pluckGain.gain.setValueAtTime(0.001, now);
+      pluckGain.gain.exponentialRampToValueAtTime(Math.max(0.12, state.amplitude * 0.25), now + 0.02);
+      pluckGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.65);
+
+      pluckOsc.connect(pluckGain);
+      pluckGain.connect(audioCtx.destination);
+      pluckOsc.start(now);
+      pluckOsc.stop(now + 0.66);
+    }
+
+    // ==========================================
+    // 4. PARTICLE & CANVAS PHYSICS ENGINE (responsive: утас → ухаалаг самбар)
+    // ==========================================
+    const canvas = document.getElementById("simCanvas");
+    const ctx = canvas.getContext("2d");
+    let width = 0;
+    let height = 0;
+    let particles = [];
+    const sourceXRatio = 0.16; // Position of vibrating object from left
+
+    // Хуучин Android самбар / Safari-д roundRect байхгүй тохиолдолд нөхөж өгнө
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+        r = Math.min(typeof r === "number" ? r : 0, w / 2, h / 2);
+        this.moveTo(x + r, y);
+        this.arcTo(x + w, y, x + w, y + h, r);
+        this.arcTo(x + w, y + h, x, y + h, r);
+        this.arcTo(x, y + h, x, y, r);
+        this.arcTo(x, y, x + w, y, r);
+        this.closePath();
+      };
+    }
+
+    // Дэлгэцийн хэмжээнээс хамаарах масштабууд
+    const view = {
+      s: 1,             // эх үүсвэр, бичиг, график зэрэг геометрийн масштаб
+      spacing: 1,       // бөөмсийн хоорондын зайн масштаб
+      wave: 1,          // долгионы уртын масштаб (дэлгэц дээр ойролцоогоор ижил тооны долгион харагдана)
+      isCoarse: false   // хуруугаар удирддаг дэлгэц эсэх
+    };
+
+    // Нэг мөр эх үүсвэр, нэг мөр бөөмс — бөөмсийн хоорондох зай (s = 1 үед, px)
+    const baseSpacing = {
+      air:   { x: 29, y: 22.6 },
+      water: { x: 22, y: 18.4 },
+      solid: { x: 19, y: 16.3 }
+    };
+
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+    function getSourceX() {
+      // Нарийн утасны дэлгэц дээр чанга яригч зүүн ирмэгээс гарахгүй
+      return Math.max(width * sourceXRatio, 62 * view.s);
+    }
+
+    function computeViewScale() {
+      const board = document.documentElement.classList.contains("board-mode");
+      view.isCoarse = window.matchMedia ? window.matchMedia("(pointer: coarse)").matches : false;
+      view.s = clamp(height / 390, 0.72, 2.6);
+      view.spacing = view.s * (width < 640 ? 0.8 : 1) * (board ? 1.05 : 1);
+      const usableW = Math.max(100, width - getSourceX() - 52 * view.s);
+      view.wave = clamp(usableW / 980, 0.55, 2.4);
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return;
+      // Том самбар дээр 4K + өндөр DPR нь гацаа үүсгэж болох тул 2-оор хязгаарлана
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      width = rect.width;
+      height = rect.height;
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      computeViewScale();
+      buildParticles();
+    }
+
+    function buildParticles() {
+      particles = [];
+      const cfg = mediumConfigs[state.medium];
+      const sp = baseSpacing[state.medium];
+      const startX = getSourceX() + 28 * view.s;
+      const endX = width - 24 * view.s;
+      const usableW = Math.max(100, endX - startX);
+
+      const topMargin = 48 * view.s;
+      const bottomMargin = 48 * view.s;
+      const usableH = Math.max(100, height - topMargin - bottomMargin);
+
+      // Дэлгэцийн өргөнөөс хамаарч бөөмсийн тоог тохируулна (утсан дээр бөөмс давхцахгүй)
+      const cols = Math.max(8, Math.round(usableW / (sp.x * view.spacing)));
+      const rows = Math.max(6, Math.round(usableH / (sp.y * view.spacing)));
+      const dx = usableW / cols;
+      const dy = usableH / rows;
+
+      // Pick 3 columns to highlight in orange so students can track individual particle motion
+      const trackedCols = [
+        Math.round(cols * 0.12),
+        Math.round(cols * 0.35),
+        Math.round(cols * 0.58)
+      ];
+      const trackedRow = Math.floor(rows / 2);
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          // Slight staggered offset in Air/Water for organic look; crisp grid in Solid
+          const stagger = (state.medium !== "solid" && r % 2 === 1) ? dx * 0.35 : 0;
+          const baseX = startX + c * dx + stagger;
+          const baseY = topMargin + r * dy + dy * 0.5;
+
+          const isTracked = (r === trackedRow && trackedCols.includes(c));
+
+          particles.push({
+            baseX,
+            baseY,
+            x: baseX,
+            y: baseY,
+            col: c,
+            row: r,
+            isTracked,
+            randPhaseX: Math.random() * Math.PI * 2,
+            randPhaseY: Math.random() * Math.PI * 2
+          });
+        }
+      }
+    }
+
+    // ==========================================
+    // 5. RENDERING SOURCES & WAVE PROPAGATION
+    // ==========================================
+    function drawSource(sourceX, displacement) {
+      const centerY = height / 2;
+      const s = view.s;
+      ctx.save();
+
+      if (state.source === "speaker") {
+        // Speaker Cabinet (Stationary box)
+        const boxW = 36 * s;
+        const boxH = 130 * s;
+        const boxX = sourceX - 52 * s;
+        const boxY = centerY - boxH / 2;
+
+        ctx.fillStyle = "#1e293b";
+        ctx.strokeStyle = "#475569";
+        ctx.lineWidth = 2 * s;
+        ctx.beginPath();
+        ctx.roundRect(boxX, boxY, boxW, boxH, 8 * s);
+        ctx.fill();
+        ctx.stroke();
+
+        // Speaker Voice Coil / Suspension
+        ctx.strokeStyle = "#64748b";
+        ctx.lineWidth = 3 * s;
+        ctx.beginPath();
+        ctx.moveTo(boxX + boxW, centerY - 26 * s);
+        ctx.lineTo(sourceX + displacement - 6 * s, centerY - 20 * s);
+        ctx.moveTo(boxX + boxW, centerY + 26 * s);
+        ctx.lineTo(sourceX + displacement - 6 * s, centerY + 20 * s);
+        ctx.stroke();
+
+        // Moving Diaphragm / Cone (Pushes & pulls particles)
+        const coneX = sourceX + displacement;
+        ctx.fillStyle = "#38bdf8";
+        ctx.shadowColor = "rgba(56, 189, 248, 0.5)";
+        ctx.shadowBlur = 14 * s;
+        ctx.beginPath();
+        ctx.moveTo(coneX - 10 * s, centerY - 28 * s);
+        ctx.lineTo(coneX + 6 * s, centerY - 62 * s);
+        ctx.lineTo(coneX + 6 * s, centerY + 62 * s);
+        ctx.lineTo(coneX - 10 * s, centerY + 28 * s);
+        ctx.closePath();
+        ctx.fill();
+
+        // Dust Cap
+        ctx.fillStyle = "#0284c7";
+        ctx.beginPath();
+        ctx.arc(coneX + 4 * s, centerY, 16 * s, -Math.PI / 2, Math.PI / 2);
+        ctx.fill();
+
+      } else if (state.source === "guitar") {
+        // Top and Bottom Bridge Pegs
+        const topY = 44 * s;
+        const botY = height - 44 * s;
+
+        ctx.fillStyle = "#475569";
+        ctx.beginPath();
+        ctx.arc(sourceX, topY, 7 * s, 0, Math.PI * 2);
+        ctx.arc(sourceX, botY, 7 * s, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Vibrating Guitar String (Quadratic Bezier curve bowing back & forth)
+        ctx.strokeStyle = "#fbbf24";
+        ctx.shadowColor = "rgba(251, 191, 36, 0.65)";
+        ctx.shadowBlur = 12 * s;
+        ctx.lineWidth = 3.5 * s;
+        ctx.beginPath();
+        ctx.moveTo(sourceX, topY);
+        ctx.quadraticCurveTo(sourceX + displacement * 2.1, centerY, sourceX, botY);
+        ctx.stroke();
+
+        // Motion blur ghost string
+        ctx.strokeStyle = "rgba(251, 191, 36, 0.22)";
+        ctx.lineWidth = 2 * s;
+        ctx.beginPath();
+        ctx.moveTo(sourceX, topY);
+        ctx.quadraticCurveTo(sourceX - displacement * 1.8, centerY, sourceX, botY);
+        ctx.stroke();
+
+      } else if (state.source === "fork") {
+        // Tuning Fork Handle & Base
+        const baseY = centerY + 35 * s;
+        ctx.strokeStyle = "#cbd5e1";
+        ctx.lineCap = "round";
+        ctx.lineWidth = 7 * s;
+
+        // Stem
+        ctx.beginPath();
+        ctx.moveTo(sourceX - 12 * s, baseY);
+        ctx.lineTo(sourceX - 12 * s, baseY + 65 * s);
+        ctx.stroke();
+
+        // U-curve base
+        ctx.beginPath();
+        ctx.arc(sourceX - 12 * s, baseY - 12 * s, 16 * s, 0, Math.PI, false);
+        ctx.stroke();
+
+        // Left & Right Vibrating Prongs
+        const prongTop = centerY - 75 * s;
+        ctx.strokeStyle = "#e2e8f0";
+        ctx.shadowColor = "rgba(56, 189, 248, 0.5)";
+        ctx.shadowBlur = 10 * s;
+        ctx.lineWidth = 6 * s;
+
+        // Left prong (moves opposite)
+        ctx.beginPath();
+        ctx.moveTo(sourceX - 28 * s, baseY - 12 * s);
+        ctx.quadraticCurveTo(sourceX - 28 * s - displacement * 0.6, centerY, sourceX - 28 * s - displacement * 1.1, prongTop);
+        ctx.stroke();
+
+        // Right prong (pushes air particles directly)
+        ctx.strokeStyle = "#38bdf8";
+        ctx.beginPath();
+        ctx.moveTo(sourceX + 4 * s, baseY - 12 * s);
+        ctx.quadraticCurveTo(sourceX + 4 * s + displacement * 0.6, centerY, sourceX + 4 * s + displacement * 1.1, prongTop);
+        ctx.stroke();
+      }
+
+      // Push / Pull Force Arrow Indicator
+      if (Math.abs(displacement) > 2.5 * s) {
+        const dir = displacement > 0 ? 1 : -1;
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = dir > 0 ? "#fb7185" : "#818cf8";
+        ctx.font = `bold ${Math.round(11 * s)}px Inter, sans-serif`;
+        ctx.textAlign = "center";
+        const label = dir > 0
+          ? (state.lang === "en" ? "PUSH →" : "ТҮЛХЭХ →")
+          : (state.lang === "en" ? "← PULL" : "← ТАТАХ");
+        ctx.fillText(label, Math.max(sourceX, 34 * s), 26 * s);
+      }
+
+      ctx.restore();
+    }
+
+    function maxDragPx() { return 24 * view.spacing; }
+
+    function updateAndDraw(dt) {
+      if (!width || !height) return;
+      const cfg = mediumConfigs[state.medium];
+      const sourceX = getSourceX();
+      const s = view.s;
+
+      // Clear background
+      ctx.fillStyle = "#060b16";
+      ctx.fillRect(0, 0, width, height);
+
+      // Subtle medium tint
+      ctx.fillStyle = cfg.bgTint;
+      ctx.fillRect(sourceX + 16 * s, 0, width - sourceX, height);
+
+      // Time scaling for visual clarity (real 220 Hz is too fast for 60fps eyes, so we scale visual frequency)
+      const timeScale = state.slowMo ? 0.25 : 1.0;
+      const visualOmega = (state.frequency / 220) * 14.0; // Radians per second visually
+
+      if (state.isPlaying) {
+        state.phase += visualOmega * dt * timeScale;
+        if (state.pluckBoost > 0) {
+          state.pluckBoost = Math.max(0, state.pluckBoost - dt * 1.4);
+          syncAudioParameters();
+        }
+      }
+
+      // Effective amplitude in pixels
+      const totalAmpRatio = state.isDraggingSource
+        ? Math.min(1.2, Math.abs(state.dragOffset) / maxDragPx())
+        : Math.min(1.15, state.amplitude + state.pluckBoost);
+
+      const maxDisplacementPx = 22 * view.spacing * totalAmpRatio;
+      const sourceDisplacement = state.isDraggingSource
+        ? state.dragOffset
+        : Math.sin(state.phase) * maxDisplacementPx;
+
+      // Wave wavelength in pixels: lambda = v / f_visual (дэлгэцийн өргөнд тааруулсан)
+      const wavelengthPx = (cfg.waveSpeedPx * 2.2 * view.wave) / (state.frequency / 220);
+      const k = (Math.PI * 2) / wavelengthPx;
+
+      const radius = cfg.particleRadius * view.spacing;
+      const jitterAmp = cfg.jitter * view.spacing;
+
+      // Update particle positions based on Longitudinal Wave equation:
+      // s(x, t) = A * sin(omega * t - k * (x - x0))
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        const distFromSource = Math.max(0, p.baseX - sourceX);
+
+        // Slight distance attenuation so wave looks natural
+        const attenuation = Math.exp(-distFromSource / (width * 1.8));
+        const waveAngle = state.phase - k * distFromSource;
+        const longitudinalShift = Math.sin(waveAngle) * maxDisplacementPx * attenuation;
+
+        // Thermal random jitter (higher in air, medium in water, zero in solid)
+        const jitterX = jitterAmp > 0 ? Math.cos(state.phase * 0.4 + p.randPhaseX) * jitterAmp : 0;
+        const jitterY = jitterAmp > 0 ? Math.sin(state.phase * 0.4 + p.randPhaseY) * jitterAmp : 0;
+
+        p.x = p.baseX + longitudinalShift + jitterX;
+        p.y = p.baseY + jitterY;
+
+        // Positive = Compression (particles bunched together), Negative = Rarefaction (spread apart)
+        const compression = Math.cos(waveAngle) * totalAmpRatio;
+
+        // Draw particle
+        ctx.beginPath();
+        if (p.isTracked) {
+          // Highlighted orange particle with equilibrium marker
+          ctx.strokeStyle = "rgba(251, 191, 36, 0.35)";
+          ctx.lineWidth = 1 * s;
+          ctx.moveTo(p.baseX - 14 * s, p.baseY);
+          ctx.lineTo(p.baseX + 14 * s, p.baseY);
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.fillStyle = "#f59e0b";
+          ctx.shadowColor = "rgba(245, 158, 11, 0.85)";
+          ctx.shadowBlur = 10 * s;
+          ctx.arc(p.x, p.y, radius + 2.2 * view.spacing, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        } else {
+          // Color shifts subtly toward rose-red in high compression zones
+          if (compression > 0.25) {
+            ctx.fillStyle = `rgba(251, 113, 133, ${0.55 + compression * 0.45})`;
+          } else if (compression < -0.25) {
+            ctx.fillStyle = `rgba(129, 140, 248, ${0.4 + Math.abs(compression) * 0.3})`;
+          } else {
+            ctx.fillStyle = cfg.color;
+          }
+          ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Draw Pressure Wave Overlay Graph if enabled
+      if (state.showWaveGraph && totalAmpRatio > 0.02) {
+        ctx.save();
+        const graphCenterY = height / 2;
+        const graphAmp = 65 * s * totalAmpRatio;
+        const startX = sourceX + 24 * s;
+        const step = Math.max(3, 4 * s);
+
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.65)";
+        ctx.lineWidth = 2.5 * s;
+
+        for (let x = startX; x < width - 20 * s; x += step) {
+          const dist = x - sourceX;
+          const attenuation = Math.exp(-dist / (width * 1.8));
+          // Pressure peaks where longitudinal displacement gradient is strongest
+          const pressure = Math.cos(state.phase - k * dist) * graphAmp * attenuation;
+          const y = graphCenterY - pressure;
+          if (x === startX) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Draw Vibrating Sound Source on the left
+      drawSource(sourceX, sourceDisplacement);
+    }
+
+    // Main Animation Loop
+    let lastTimestamp = 0;
+    function animate(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000);
+      lastTimestamp = timestamp;
+
+      updateAndDraw(dt);
+      requestAnimationFrame(animate);
+    }
+
+    // ==========================================
+    // 6. POINTER EVENTS: хулгана, хуруу, самбарын үзэг (multi-touch)
+    // ==========================================
+    let dragPointerId = null;   // эх үүсвэрийг чирж буй хуруу
+    const tapPointers = new Set(); // эх үүсвэрээс хол товшсон хуруунууд
+
+    function getPointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+
+    function sourceHitRadius() {
+      // Хуруугаар дарахад том талбай хэрэгтэй
+      return Math.max(65 * view.s, view.isCoarse ? 80 : 0);
+    }
+
+    function hideCanvasHint() {
+      const hint = document.getElementById("canvas-hint");
+      if (hint && !hint.classList.contains("fade-out")) {
+        setTimeout(() => hint.classList.add("fade-out"), 2500);
+      }
+    }
+
+    function handlePointerDown(e) {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      hideCanvasHint();
+      const pos = getPointerPos(e);
+      const sourceX = getSourceX();
+
+      // Эх үүсвэрийн ойролцоо дарвал — чирэх (нэг удаад нэг хуруу)
+      if (dragPointerId === null && Math.abs(pos.x - sourceX) < sourceHitRadius()) {
+        dragPointerId = e.pointerId;
+        try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
+        state.isDraggingSource = true;
+        const m = maxDragPx();
+        state.dragOffset = clamp(pos.x - sourceX, -m, m);
+        initAudio();
+        if (e.cancelable) e.preventDefault();
+      } else {
+        // Бусад газар товшвол — хуруу өргөх үед цохино (утсан дээр дуу гарахад шаардлагатай)
+        tapPointers.add(e.pointerId);
+        state.pluckBoost = Math.max(state.pluckBoost, 0.5); // нүдэнд шууд харагдана
+      }
+    }
+
+    function handlePointerMove(e) {
+      if (e.pointerId !== dragPointerId || !state.isDraggingSource) return;
+      if (e.cancelable) e.preventDefault();
+      const pos = getPointerPos(e);
+      const m = maxDragPx();
+      state.dragOffset = clamp(pos.x - getSourceX(), -m, m);
+    }
+
+    function releaseDrag() {
+      state.isDraggingSource = false;
+      // Release spring energy into vibration!
+      state.phase = state.dragOffset >= 0 ? Math.PI / 2 : -Math.PI / 2;
+      state.pluckBoost = Math.min(0.55, Math.abs(state.dragOffset) / maxDragPx());
+      state.dragOffset = 0;
+      dragPointerId = null;
+      triggerPluckSound();
+      syncAudioParameters();
+    }
+
+    function handlePointerUp(e) {
+      if (e.pointerId === dragPointerId) {
+        releaseDrag();
+      } else if (tapPointers.has(e.pointerId)) {
+        tapPointers.delete(e.pointerId);
+        if (e.type === "pointerup") pluckSource();
+      }
+    }
+
+    canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("pointermove", handlePointerMove);
+    canvas.addEventListener("pointerup", handlePointerUp);
+    canvas.addEventListener("pointercancel", handlePointerUp);
+    canvas.addEventListener("lostpointercapture", (e) => {
+      if (e.pointerId === dragPointerId) releaseDrag();
+    });
+    // Удаан дарахад гарах цэсийг хаана (самбар / утас)
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    // ==========================================
+    // 7. UI CONTROLS & LANGUAGE HANDLERS
+    // ==========================================
+    function pluckSource() {
+      state.pluckBoost = 0.5;
+      if (!state.isPlaying) {
+        state.isPlaying = true;
+        updatePlayPauseUI();
+      }
+      triggerPluckSound();
+      syncAudioParameters();
+    }
+
+    function updateFrequency(val) {
+      state.frequency = Number(val);
+      document.getElementById("freq-val").textContent = state.frequency;
+      document.getElementById("readout-freq").textContent = state.frequency;
+      document.getElementById("note-val").textContent = freqToNoteName(state.frequency);
+      syncAudioParameters();
+      updatePianoActive(true);
+    }
+
+    function updateAmplitude(val) {
+      state.amplitude = Number(val) / 100;
+      document.getElementById("amp-val").textContent = val;
+      syncAudioParameters();
+    }
+
+    function updateWaveform(val) {
+      state.waveform = val;
+      syncAudioParameters();
+    }
+
+    function setNote(freq, label) {
+      const rounded = Math.round(freq);
+      document.getElementById("freq-slider").value = rounded;
+      state.frequency = freq;
+      document.getElementById("freq-val").textContent = rounded;
+      document.getElementById("readout-freq").textContent = rounded;
+      document.getElementById("note-val").textContent = label;
+      pluckSource();
+      updatePianoActive(false);
+    }
+
+    // ==========================================
+    // ТӨГӨЛДӨР ХУУРЫН ГАР (C3 – B5, 110–660 Hz хооронд идэвхтэй)
+    // ==========================================
+    const FREQ_MIN = 110, FREQ_MAX = 660;
+    const pianoNotes = [
+      { semi: 0,  en: "C",  mn: "До",   black: false },
+      { semi: 1,  en: "C#", mn: "До#",  black: true,  after: 0 },
+      { semi: 2,  en: "D",  mn: "Ре",   black: false },
+      { semi: 3,  en: "D#", mn: "Ре#",  black: true,  after: 1 },
+      { semi: 4,  en: "E",  mn: "Ми",   black: false },
+      { semi: 5,  en: "F",  mn: "Фа",   black: false },
+      { semi: 6,  en: "F#", mn: "Фа#",  black: true,  after: 3 },
+      { semi: 7,  en: "G",  mn: "Соль", black: false },
+      { semi: 8,  en: "G#", mn: "Соль#",black: true,  after: 4 },
+      { semi: 9,  en: "A",  mn: "Ля",   black: false },
+      { semi: 10, en: "A#", mn: "Ля#",  black: true,  after: 5 },
+      { semi: 11, en: "B",  mn: "Си",   black: false }
+    ];
+    let currentOctave = 3;
+
+    function noteFreq(semi, octave) {
+      const midi = (octave + 1) * 12 + semi;
+      return 440 * Math.pow(2, (midi - 69) / 12);
+    }
+
+    function renderPiano() {
+      const piano = document.getElementById("piano");
+      if (!piano) return;
+      piano.innerHTML = "";
+      const whiteCount = 7;
+      pianoNotes.forEach(n => {
+        const f = noteFreq(n.semi, currentOctave);
+        const label = `${n.en}${currentOctave}`;
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = n.black ? "key-b" : "key-w";
+        btn.dataset.semi = n.semi;
+        btn.disabled = f < FREQ_MIN - 0.5 || f > FREQ_MAX + 0.5;
+        btn.title = `${n.mn} / ${label} — ${f.toFixed(2)} Hz`;
+        const main = state.lang === "en" ? n.en : n.mn;
+        btn.innerHTML = `<span>${main}</span><span class="key-sub">${label}</span>`;
+        if (n.black) btn.style.left = `calc(${((n.after + 1) / whiteCount) * 100}% - 4.5%)`;
+        btn.addEventListener("click", () => {
+          initAudio();
+          setNote(f, label);
+        });
+        piano.appendChild(btn);
+      });
+      document.querySelectorAll(".oct-btn").forEach(b =>
+        b.classList.toggle("active", b.id === `oct-${currentOctave}`)
+      );
+      updatePianoActive(false);
+    }
+
+    function setOctave(oct) {
+      currentOctave = oct;
+      renderPiano();
+    }
+
+    // Одоогийн давтамж аль нэг нотод тохирвол түүнийг гэрэлтүүлнэ
+    function updatePianoActive(followOctave) {
+      const midi = Math.round(12 * Math.log2(state.frequency / 440) + 69);
+      const exact = 440 * Math.pow(2, (midi - 69) / 12);
+      const matched = Math.abs(exact - state.frequency) <= 1;
+      const oct = Math.floor(midi / 12) - 1;
+      const semi = ((midi % 12) + 12) % 12;
+      if (matched && followOctave && oct !== currentOctave && oct >= 3 && oct <= 5) {
+        currentOctave = oct;
+        renderPiano();
+        return;
+      }
+      document.querySelectorAll("#piano button").forEach(b => {
+        b.classList.toggle("active", matched && oct === currentOctave && Number(b.dataset.semi) === semi);
+      });
+    }
+
+    // Гараас: 1–7 = До…Си (одоогийн октав), 8 = дараагийн До
+    function playWhiteByIndex(i) {
+      const whites = pianoNotes.filter(n => !n.black);
+      let oct = currentOctave, n = whites[i];
+      if (i === 7) { oct = currentOctave + 1; n = whites[0]; }
+      if (!n) return;
+      const f = noteFreq(n.semi, oct);
+      if (f < FREQ_MIN - 0.5 || f > FREQ_MAX + 0.5) return;
+      initAudio();
+      setNote(f, `${n.en}${oct}`);
+    }
+
+    function freqToNoteName(freq) {
+      const notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+      const midi = Math.round(12 * Math.log2(freq / 440) + 69);
+      const name = notes[midi % 12];
+      const octave = Math.floor(midi / 12) - 1;
+      return `${name}${octave}`;
+    }
+
+    function setSource(src) {
+      state.source = src;
+      document.querySelectorAll(".source-btn").forEach(btn => {
+        btn.className = "source-btn p-2.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-300 text-center transition flex flex-col items-center gap-1";
+      });
+      const active = document.getElementById(`src-${src}`);
+      active.className = "source-btn p-2.5 rounded-xl border border-sky-500 bg-sky-500/15 text-white text-center transition flex flex-col items-center gap-1";
+      pluckSource();
+    }
+
+    function setMedium(med) {
+      state.medium = med;
+      document.querySelectorAll(".med-btn").forEach(btn => {
+        btn.className = "med-btn p-2.5 rounded-xl border border-slate-700 bg-slate-800/60 hover:bg-slate-800 text-slate-300 text-center transition flex flex-col items-center gap-1";
+      });
+      const active = document.getElementById(`med-${med}`);
+      active.className = "med-btn p-2.5 rounded-xl border border-emerald-500 bg-emerald-500/15 text-white text-center transition flex flex-col items-center gap-1";
+
+      updateSpeedReadout();
+      buildParticles();
+      syncAudioParameters();
+    }
+
+    function updateSpeedReadout() {
+      const cfg = mediumConfigs[state.medium];
+      const el = document.getElementById("readout-speed");
+      if (state.lang === "mn") {
+        el.textContent = `${cfg.speedReal} м/с (${cfg.nameMn})`;
+      } else if (state.lang === "en") {
+        el.textContent = `${cfg.speedReal} m/s (${cfg.nameEn})`;
+      } else {
+        el.textContent = `${cfg.speedReal} m/s (${cfg.nameMn} / ${cfg.nameEn})`;
+      }
+    }
+
+    function togglePlay() {
+      state.isPlaying = !state.isPlaying;
+      updatePlayPauseUI();
+      syncAudioParameters();
+    }
+
+    function updatePlayPauseUI() {
+      const btn = document.getElementById("playpause-btn");
+      const dict = i18n[state.lang];
+      if (state.isPlaying) {
+        btn.innerHTML = `⏸ <span class="btn-label">${dict.pauseBtn}</span>`;
+      } else {
+        btn.innerHTML = `▶ <span class="btn-label">${dict.playBtn}</span>`;
+      }
+    }
+
+    function toggleSlowMo() {
+      state.slowMo = !state.slowMo;
+      updateSlowMoUI();
+      syncAudioParameters();
+    }
+
+    function updateSlowMoUI() {
+      const btn = document.getElementById("slowmo-btn");
+      const dict = i18n[state.lang];
+      if (state.slowMo) {
+        btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500 text-slate-950 border border-amber-400 transition shadow-lg";
+        btn.innerHTML = `⚡ <span class="btn-label">${dict.slowMoActive}</span>`;
+      } else {
+        btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900/90 hover:bg-slate-800 text-slate-200 border border-slate-700 transition shadow-lg";
+        btn.innerHTML = `🐢 <span class="btn-label">${dict.slowMoBtn}</span>`;
+      }
+    }
+
+    function setLanguage(lang) {
+      state.lang = lang;
+
+      // Update active language pill styling
+      ["bi", "mn", "en"].forEach(code => {
+        const btn = document.getElementById(`lang-${code}`);
+        if (code === lang) {
+          btn.className = "px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-sky-500 text-slate-950 transition";
+        } else {
+          btn.className = "px-2.5 py-1.5 text-xs font-semibold rounded-lg text-slate-300 hover:text-white transition";
+        }
+      });
+
+      const dict = i18n[lang];
+      document.getElementById("app-title").textContent = dict.appTitle;
+      document.getElementById("app-subtitle").textContent = dict.appSubtitle;
+
+      // Update all data-i18n labels
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (dict[key]) {
+          el.textContent = dict[key];
+        }
+      });
+
+      // Show/Hide language-specific explanation paragraphs
+      document.querySelectorAll("[data-lang-block]").forEach(el => {
+        const blockLang = el.getAttribute("data-lang-block");
+        if (lang === "bi" || lang === blockLang) {
+          el.classList.remove("hidden");
+        } else {
+          el.classList.add("hidden");
+        }
+      });
+
+      updateAudioButtonUI();
+      updatePlayPauseUI();
+      updateSlowMoUI();
+      updateSpeedReadout();
+      updateBoardFsUI();
+      renderPiano();
+    }
+
+    // ==========================================
+    // 7b. УХААЛАГ САМБАР, БҮТЭН ДЭЛГЭЦ, ТОВЧЛУУР, ДЭЛГЭЦ УНТРАХГҮЙ
+    // ==========================================
+    function storageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+    function storageSet(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
+
+    function isBoardMode() { return document.documentElement.classList.contains("board-mode"); }
+
+    function setBoardMode(on, save) {
+      document.documentElement.classList.toggle("board-mode", on);
+      if (save) storageSet("soundSim.boardMode", on ? "1" : "0");
+      if (on) requestWakeLock();
+      updateBoardFsUI();
+      // Layout өөрчлөгдсөний дараа canvas-ыг дахин тооцоолно
+      requestAnimationFrame(resizeCanvas);
+    }
+
+    function toggleBoardMode() { setBoardMode(!isBoardMode(), true); }
+
+    function fullscreenSupported() {
+      return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+    }
+    function fullscreenElement() {
+      return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+
+    function toggleFullscreen() {
+      if (!fullscreenSupported()) return;
+      const el = document.documentElement;
+      try {
+        let p;
+        if (!fullscreenElement()) {
+          p = (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+        } else {
+          p = (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        }
+        if (p && p.catch) p.catch(() => {});
+      } catch (e) {}
+    }
+
+    function updateBoardFsUI() {
+      const dict = i18n[state.lang];
+      const boardLabel = document.getElementById("board-btn-label");
+      if (boardLabel) boardLabel.textContent = dict.boardBtn;
+
+      const fsBtn = document.getElementById("fs-btn");
+      if (!fsBtn) return;
+      // iPhone Safari бүтэн дэлгэцийг дэмждэггүй — товчийг нууна ("Home Screen-д нэмэх" ашиглана)
+      fsBtn.style.display = fullscreenSupported() ? "" : "none";
+      const inFs = !!fullscreenElement();
+      document.getElementById("fs-icon").textContent = inFs ? "✕" : "⛶";
+      document.getElementById("fs-btn-label").textContent = inFs ? dict.fsExit : dict.fsEnter;
+    }
+
+    ["fullscreenchange", "webkitfullscreenchange"].forEach(ev =>
+      document.addEventListener(ev, () => {
+        updateBoardFsUI();
+        if (fullscreenElement()) requestWakeLock();
+        requestAnimationFrame(resizeCanvas);
+      })
+    );
+
+    // Хичээлийн үеэр дэлгэц унтрахгүй (Screen Wake Lock)
+    let wakeLock = null;
+    async function requestWakeLock() {
+      try {
+        if (!("wakeLock" in navigator) || document.visibilityState !== "visible") return;
+        if (wakeLock && !wakeLock.released) return;
+        wakeLock = await navigator.wakeLock.request("screen");
+      } catch (e) {}
+    }
+    document.addEventListener("pointerdown", requestWakeLock, { passive: true });
+
+    document.addEventListener("visibilitychange", () => {
+      syncAudioParameters();
+      if (document.visibilityState === "visible") {
+        lastTimestamp = 0;
+        requestWakeLock();
+      }
+    });
+
+    // Гар / самбарын гар / презентерийн товчлуур
+    function nudgeSlider(id, delta, handler) {
+      const el = document.getElementById(id);
+      const v = clamp(Number(el.value) + delta, Number(el.min), Number(el.max));
+      el.value = v;
+      handler(v);
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const tag = (e.target && e.target.tagName) || "";
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+      const onButton = tag === "BUTTON";
+      const key = e.key;
+
+      if (key === " " || key === "Spacebar") {
+        if (onButton) return; // товч дээр Space дарвал товч өөрөө ажиллана
+        e.preventDefault(); initAudio(); togglePlay();
+      } else if (key === "ArrowRight") {
+        e.preventDefault(); nudgeSlider("freq-slider", e.shiftKey ? 50 : 10, updateFrequency);
+      } else if (key === "ArrowLeft") {
+        e.preventDefault(); nudgeSlider("freq-slider", e.shiftKey ? -50 : -10, updateFrequency);
+      } else if (key === "ArrowUp") {
+        e.preventDefault(); nudgeSlider("amp-slider", 5, updateAmplitude);
+      } else if (key === "ArrowDown") {
+        e.preventDefault(); nudgeSlider("amp-slider", -5, updateAmplitude);
+      } else if (key === "PageDown" || key === "PageUp") {
+        // Презентерийн (clicker) товч — цохилт өгнө
+        e.preventDefault(); pluckSource();
+      } else {
+        // e.code нь гарын байрлалаас (Монгол/Англи) үл хамаарна
+        const code = e.code || "";
+        const k = (key || "").toLowerCase();
+        const digit = /^Digit([1-8])$/.exec(code) || /^([1-8])$/.exec(k);
+        if (digit) playWhiteByIndex(Number(digit[1]) - 1);
+        else if (code === "KeyP" || k === "p") pluckSource();
+        else if (code === "KeyS" || k === "s") toggleSlowMo();
+        else if (code === "KeyF" || k === "f") toggleFullscreen();
+        else if (code === "KeyB" || k === "b") toggleBoardMode();
+        else return;
+        e.preventDefault();
+      }
+    });
+
+    // ==========================================
+    // 8. INITIALIZATION ON WINDOW LOAD
+    // ==========================================
+    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 250));
+    // Самбарын горим, бүтэн дэлгэц, эргүүлэх үед canvas-ын хэмжээ өөрчлөгдөхийг ажиглана
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => resizeCanvas()).observe(document.getElementById("sim-wrap"));
+    }
+
+    window.onload = function () {
+      // Самбарын горим: хадгалсан сонголт, эсвэл том мэдрэгч дэлгэцийг автоматаар таних
+      const saved = storageGet("soundSim.boardMode");
+      const looksLikeBoard = (navigator.maxTouchPoints || 0) > 0 &&
+        Math.max(screen.width, screen.height) >= 1900 && Math.min(screen.width, screen.height) >= 1000;
+      if (saved === "1" || (saved === null && looksLikeBoard)) {
+        document.documentElement.classList.add("board-mode");
+      }
+
+      resizeCanvas();
+      setLanguage("bi");
+      requestAnimationFrame(animate);
+    };
+  </script>
+</body>
+</html>
